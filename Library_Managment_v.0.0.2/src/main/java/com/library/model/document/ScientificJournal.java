@@ -1,8 +1,10 @@
 package com.library.model.document;
 
+import com.library.model.interfaces.Borrowable;
+import com.library.model.interfaces.Reservable;
 import java.util.UUID;
 
-public class ScientificJournal extends Document {
+public class ScientificJournal extends Document implements Borrowable, Reservable {
     private String researchField;
 
     public ScientificJournal(UUID id, String title, String author, String publisher, int publicationYear, String researchField) {
@@ -15,6 +17,31 @@ public class ScientificJournal extends Document {
         return "ScientificJournal";
     }
 
-    public String getResearchField() { return researchField; }
-    public void setResearchField(String researchField) { this.researchField = researchField; }
+    public String getResearchField() {
+        return researchField;
+    }
+
+    public void setResearchField(String researchField) {
+        this.researchField = researchField;
+    }
+
+    @Override
+    public void borrow() {
+        // Implement borrow logic
+    }
+
+    @Override
+    public void returnDocument() {
+        // Implement return logic
+    }
+
+    @Override
+    public void reserve() {
+        // Implement reserve logic
+    }
+
+    @Override
+    public void cancelReservation() {
+        // Implement cancel reservation logic
+    }
 }

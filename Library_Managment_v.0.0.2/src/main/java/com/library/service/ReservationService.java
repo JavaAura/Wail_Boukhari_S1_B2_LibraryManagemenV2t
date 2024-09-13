@@ -1,52 +1,65 @@
 package com.library.service;
 
 import com.library.dao.ReservationDAO;
+import com.library.dao.ReservationDAOImpl;
+import com.library.dao.UserDAO;
+import com.library.dao.UserDAOImpl;
+import com.library.dao.DocumentDAO;
+import com.library.dao.DocumentDAOImpl;
 import com.library.model.Reservation;
+import com.library.model.document.Document;
+import com.library.model.user.User;
+
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
 
 public class ReservationService {
-	private final ReservationDAO reservationDAO;
-	private final LoanService loanService;
+    private final ReservationDAO reservationDAO;
+    private final UserDAO userDAO;
+    private final DocumentDAO documentDAO;
+    private final LoanService loanService;
 
-	public ReservationService(LoanService loanService) {
-		this.reservationDAO = ReservationDAO.getInstance();
-		this.loanService = loanService;
-	}
+    public ReservationService(LoanService loanService) {
+        this.reservationDAO = ReservationDAOImpl.getInstance();
+        this.userDAO = UserDAOImpl.getInstance();
+        this.documentDAO = DocumentDAOImpl.getInstance();
+        this.loanService = loanService;
+    }
 
-	public void reserveDocument(String documentTitle, String userName) {
-		if (!loanService.isDocumentLoaned(documentTitle)) {
-			throw new IllegalArgumentException("Document is not currently loaned and doesn't need reservation.");
-		}
-		Reservation reservation = new Reservation(null, documentTitle, userName, LocalDate.now());
-		try {
-			reservationDAO.save(reservation);
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to process reservation. Please try again later.");
-		}
-	}
+    public void reserveDocument(String documentTitle, String userName) {
+        Optional<Document> document = documentDAO.getDocumentByTitle(documentTitle);
+        Optional<User> user = userDAO.getUserByName(userName);
 
-	public void cancelReservation(String documentTitle, String userName) {
-		try {
-			reservationDAO.delete(documentTitle, userName);
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to cancel reservation. Please try again later.");
-		}
-	}
+        if (document.isEmpty() || user.isEmpty()) {
+            throw new IllegalArgumentException("Document or user not found");
+        }
 
-	public List<Reservation> getAllReservations() {
-		try {
-			return reservationDAO.findAll();
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to retrieve reservations. Please try again later.");
-		}
-	}
+        // Check if the document is already borrowed
+        try {
+            loanService.borrowDocument(documentTitle, userName);
+            // If successful, the document is available, so we don't need to reserve it
+            throw new IllegalStateException("Document is available for borrowing, no need to reserve");
+        } catch (IllegalStateException e) {
+            // Document is already borrowed, proceed with reservation
+            Reservation reservation = new Reservation(UUID.randomUUID(), document.get().getId(), user.get().getId(), LocalDate.now());
+            reservationDAO.addReservation(reservation);
+        }
+    }
 
-	public List<Reservation> getReservationsForDocument(String documentTitle) {
-		try {
-			return reservationDAO.findByDocument(documentTitle);
-		} catch (Exception e) {
-			throw new RuntimeException("Unable to retrieve reservations for the document. Please try again later.");
-		}
-	}
+    public void cancelReservation(String documentTitle, String userName) {
+        Optional<Document> document = documentDAO.getDocumentByTitle(documentTitle);
+        Optional<User> user = userDAO.getUserByName(userName);
+
+        if (document.isEmpty() || user.isEmpty()) {
+            throw new IllegalArgumentException("Document or user not found");
+        }
+
+        reservationDAO.deleteReservation(document.get().getId(), user.get().getId());
+    }
+
+    public List<Reservation> getAllReservations() {
+        return reservationDAO.getAllReservations();
+    }
 }

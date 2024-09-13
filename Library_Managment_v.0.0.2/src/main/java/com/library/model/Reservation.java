@@ -5,14 +5,14 @@ import java.util.UUID;
 
 public class Reservation {
     private UUID id;
-    private String documentTitle;
-    private String userName;
+    private UUID documentId;
+    private UUID userId;
     private LocalDate reservationDate;
 
-    public Reservation(UUID id, String documentTitle, String userName, LocalDate reservationDate) {
+    public Reservation(UUID id, UUID documentId, UUID userId, LocalDate reservationDate) {
         this.id = id;
-        this.documentTitle = documentTitle;
-        this.userName = userName;
+        this.documentId = documentId;
+        this.userId = userId;
         this.reservationDate = reservationDate;
     }
 
@@ -24,20 +24,20 @@ public class Reservation {
         this.id = id;
     }
 
-    public String getDocumentTitle() {
-        return documentTitle;
+    public UUID getDocumentId() {
+        return documentId;
     }
 
-    public void setDocumentTitle(String documentTitle) {
-        this.documentTitle = documentTitle;
+    public void setDocumentId(UUID documentId) {
+        this.documentId = documentId;
     }
 
-    public String getUserName() {
-        return userName;
+    public UUID getUserId() {
+        return userId;
     }
 
-    public void setUserName(String userName) {
-        this.userName = userName;
+    public void setUserId(UUID userId) {
+        this.userId = userId;
     }
 
     public LocalDate getReservationDate() {

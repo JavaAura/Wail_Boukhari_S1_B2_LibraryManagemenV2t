@@ -1,13 +1,19 @@
 package com.library.service;
+
+import com.library.dao.LoanDAO;
+import com.library.dao.LoanDAOImpl;
+import com.library.dao.UserDAO;
+import com.library.dao.UserDAOImpl;
+import com.library.dao.DocumentDAO;
+import com.library.dao.DocumentDAOImpl;
+import com.library.model.Loan;
+import com.library.model.document.Document;
+import com.library.model.user.User;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-
-import com.library.dao.DocumentDAO;
-import com.library.dao.LoanDAO;
-import com.library.dao.UserDAO;
-import com.library.model.Loan;
-import com.library.model.user.User;
+import java.util.UUID;
 
 public class LoanService {
     private final LoanDAO loanDAO;
@@ -15,71 +21,61 @@ public class LoanService {
     private final DocumentDAO documentDAO;
 
     public LoanService() {
-        this.loanDAO = LoanDAO.getInstance();
-        this.userDAO = UserDAO.getInstance();
-        this.documentDAO = DocumentDAO.getInstance();
+        this.loanDAO = LoanDAOImpl.getInstance();
+        this.userDAO = UserDAOImpl.getInstance();
+        this.documentDAO = DocumentDAOImpl.getInstance();
     }
 
-    public void loanDocument(String documentTitle, String userName) {
-        User user = userDAO.findByName(userName)
-                .orElseThrow(() -> new IllegalArgumentException("User does not exist: " + userName));
-    
-        if (!documentDAO.documentExists(documentTitle)) {
-            throw new IllegalArgumentException("Document does not exist: " + documentTitle);
-        }
-    
-        if (isDocumentLoaned(documentTitle)) {
-            throw new IllegalArgumentException("Document is already loaned: " + documentTitle);
-        }
-    
-        int currentLoans = getCurrentLoansCount(userName);
-        if (currentLoans >= user.getBorrowingLimit()) {
-            throw new IllegalArgumentException("User has reached their maximum borrowing limit of " + user.getBorrowingLimit() + " documents.");
-        }
-    
-        Loan loan = new Loan(null, documentTitle, userName, LocalDate.now(), null);
-        try {
-            loanDAO.save(loan);
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to process loan. Please try again later.");
-        }
-    }
+    public void borrowDocument(String documentTitle, String userName) {
+        Optional<Document> document = documentDAO.getDocumentByTitle(documentTitle);
+        Optional<User> user = userDAO.getUserByName(userName);
 
-    private int getCurrentLoansCount(String userName) {
-        return (int) loanDAO.findAll().stream()
-                .filter(loan -> loan.getUserName().equals(userName) && loan.getReturnDate() == null)
-                .count();
+        if (document.isEmpty() || user.isEmpty()) {
+            throw new IllegalArgumentException("Document or user not found");
+        }
+
+        int activeLoans = getActiveLoansCount(user.get().getId());
+        if (activeLoans >= user.get().getBorrowingLimit()) {
+            throw new IllegalStateException("User has reached their borrowing limit");
+        }
+
+        Loan loan = new Loan(UUID.randomUUID(), document.get().getId(), user.get().getId(), LocalDate.now(), null);
+        loanDAO.addLoan(loan);
     }
 
     public void returnDocument(String documentTitle, String userName) {
-        Optional<Loan> loanOpt = loanDAO.findByDocumentAndUser(documentTitle, userName);
-        if (loanOpt.isPresent()) {
-            Loan loan = loanOpt.get();
-            loan.setReturnDate(LocalDate.now());
-            try {
-                loanDAO.update(loan);
-            } catch (Exception e) {
-                throw new RuntimeException("Unable to process return. Please try again later.");
-            }
-        } else {
-            throw new IllegalArgumentException("No active loan found for this document and user.");
+        Optional<Document> document = documentDAO.getDocumentByTitle(documentTitle);
+        Optional<User> user = userDAO.getUserByName(userName);
+
+        if (document.isEmpty() || user.isEmpty()) {
+            throw new IllegalArgumentException("Document or user not found");
         }
+
+        Optional<Loan> activeLoan = getActiveLoan(document.get().getId(), user.get().getId());
+        if (activeLoan.isEmpty()) {
+            throw new IllegalStateException("No active loan found for this document and user");
+        }
+
+        Loan loan = activeLoan.get();
+        loan.setReturnDate(LocalDate.now());
+        loanDAO.updateLoan(loan);
     }
 
     public List<Loan> getAllLoans() {
-        try {
-            return loanDAO.findAll();
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to retrieve loans. Please try again later.");
-        }
+        return loanDAO.getAllLoans();
     }
 
-    public boolean isDocumentLoaned(String documentTitle) {
-        try {
-            return loanDAO.findAll().stream()
-                    .anyMatch(loan -> loan.getDocumentTitle().equals(documentTitle) && loan.getReturnDate() == null);
-        } catch (Exception e) {
-            throw new RuntimeException("Unable to check document loan status. Please try again later.");
-        }
+    private int getActiveLoansCount(UUID userId) {
+        return (int) loanDAO.getAllLoans().stream()
+                .filter(loan -> loan.getUserId().equals(userId) && loan.getReturnDate() == null)
+                .count();
+    }
+
+    private Optional<Loan> getActiveLoan(UUID documentId, UUID userId) {
+        return loanDAO.getAllLoans().stream()
+                .filter(loan -> loan.getDocumentId().equals(documentId) &&
+                        loan.getUserId().equals(userId) &&
+                        loan.getReturnDate() == null)
+                .findFirst();
     }
 }

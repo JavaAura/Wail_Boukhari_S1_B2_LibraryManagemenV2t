@@ -185,7 +185,7 @@ public class ConsoleUI {
         String confirm = getStringInput("Type 'YES' to confirm deletion: ");
 
         if (confirm.equalsIgnoreCase("YES")) {
-            documentService.deleteDocument(title);
+            documentService.deleteDocument(document.getId());
             System.out.println(CostumColor.GREEN_BOLD_BRIGHT + "✅ Document deleted successfully!" + CostumColor.RESET);
         } else {
             System.out.println("Deletion cancelled.");
@@ -289,8 +289,11 @@ public class ConsoleUI {
                 user = new Student(null, name, email, phoneNumber, studentId, department);
             }
             case 2 -> {
-                String department = getStringInput("Enter department: ");
-                user = new Professor(null, name, email, phoneNumber, department);
+                String department;
+                do {
+                    department = getStringInput("Enter department: ");
+                } while (department.trim().isEmpty());
+                user = userService.createProfessor(name, email, phoneNumber, department);
             }
             default -> {
                 System.out.println(
@@ -424,7 +427,7 @@ public class ConsoleUI {
         String userName = getStringInput("Enter user name: ");
 
         try {
-            loanService.loanDocument(documentTitle, userName);
+            loanService.borrowDocument(documentTitle, userName);
             System.out.println(CostumColor.GREEN_BOLD_BRIGHT + "✅ Document loaned successfully!" + CostumColor.RESET);
         } catch (IllegalArgumentException e) {
             System.out.println(CostumColor.RED_BOLD_BRIGHT + "❌ " + e.getMessage() + CostumColor.RESET);
@@ -465,11 +468,16 @@ public class ConsoleUI {
     }
 
     private void printLoanDetails(Loan loan) {
-        System.out.println("Document: " + loan.getDocumentTitle());
-        System.out.println("User: " + loan.getUserName());
+        String documentTitle = documentService.getDocumentById(loan.getDocumentId())
+                .map(Document::getTitle)
+                .orElse("Unknown Document");
+        String userName = userService.getUserById(loan.getUserId())
+                .map(User::getName)
+                .orElse("Unknown User");
+        System.out.println("Document: " + documentTitle);
+        System.out.println("User: " + userName);
         System.out.println("Loan Date: " + loan.getLoanDate());
-        System.out
-                .println("Return Date: " + (loan.getReturnDate() != null ? loan.getReturnDate() : "Not returned yet"));
+        System.out.println("Return Date: " + (loan.getReturnDate() != null ? loan.getReturnDate() : "Not returned yet"));
     }
 
     private void handleReservations() {
@@ -542,11 +550,17 @@ public class ConsoleUI {
         }
     }
 
-    private void printReservationDetails(Reservation reservation) {
-        System.out.println("Document: " + reservation.getDocumentTitle());
-        System.out.println("User: " + reservation.getUserName());
-        System.out.println("Reservation Date: " + reservation.getReservationDate());
-    }
+private void printReservationDetails(Reservation reservation) {
+    String documentTitle = documentService.getDocumentById(reservation.getDocumentId())
+            .map(Document::getTitle)
+            .orElse("Unknown Document");
+    String userName = userService.getUserById(reservation.getUserId())
+            .map(User::getName)
+            .orElse("Unknown User");
+    System.out.println("Document: " + documentTitle);
+    System.out.println("User: " + userName);
+    System.out.println("Reservation Date: " + reservation.getReservationDate());
+}
 
     private String getStringInput(String prompt) {
         System.out.print(prompt);

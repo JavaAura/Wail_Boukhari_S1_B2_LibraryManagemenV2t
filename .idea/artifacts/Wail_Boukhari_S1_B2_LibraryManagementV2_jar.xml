@@ -1,0 +1,12 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="Wail_Boukhari_S1_B2_LibraryManagementV2:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/Wail_Boukhari_S1_B2_LibraryManagementV2_jar</output-path>
+    <root id="archive" name="Wail_Boukhari_S1_B2_LibraryManagementV2.jar">
+      <element id="directory" name="META-INF">
+        <element id="file-copy" path="$PROJECT_DIR$/Library_Managment_v.0.0.2/src/main/resources/META-INF/MANIFEST.MF" />
+      </element>
+      <element id="module-output" name="Wail_Boukhari_S1_B2_LibraryManagementV2" />
+      <element id="extracted-dir" path="$USER_HOME$/Downloads/postgresql-42.7.4.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

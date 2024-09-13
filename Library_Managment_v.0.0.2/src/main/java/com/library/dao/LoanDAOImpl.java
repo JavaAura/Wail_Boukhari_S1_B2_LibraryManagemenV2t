@@ -1,6 +1,8 @@
 package com.library.dao;
 
 import com.library.model.Loan;
+import com.library.model.Reservation;
+
 import java.sql.*;
 import java.time.LocalDate;
 import java.util.ArrayList;
@@ -29,6 +31,19 @@ public class LoanDAOImpl implements LoanDAO {
 
     @Override
     public void addLoan(Loan loan) {
+        // First, check if the document is already loaned
+        String checkSql = "SELECT COUNT(*) FROM loans WHERE document_id = ? AND return_date IS NULL";
+        try (PreparedStatement checkStmt = connection.prepareStatement(checkSql)) {
+            checkStmt.setObject(1, loan.getDocumentId());
+            ResultSet rs = checkStmt.executeQuery();
+            if (rs.next() && rs.getInt(1) > 0) {
+                throw new IllegalStateException("This document is already loaned.");
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error checking document loan status: " + e.getMessage(), e);
+        }
+    
+        // If the document is not loaned, proceed with adding the new loan
         String sql = "INSERT INTO loans (id, document_id, user_id, loan_date, return_date) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, loan.getId());
@@ -36,9 +51,12 @@ public class LoanDAOImpl implements LoanDAO {
             stmt.setObject(3, loan.getUserId());
             stmt.setDate(4, java.sql.Date.valueOf(loan.getLoanDate()));
             stmt.setDate(5, loan.getReturnDate() != null ? java.sql.Date.valueOf(loan.getReturnDate()) : null);
-            stmt.executeUpdate();
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new SQLException("Adding loan failed, no rows affected.");
+            }
         } catch (SQLException e) {
-            throw new RuntimeException("Error adding loan", e);
+            throw new RuntimeException("Error adding loan: " + e.getMessage(), e);
         }
     }
 
@@ -48,12 +66,34 @@ public class LoanDAOImpl implements LoanDAO {
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setDate(1, loan.getReturnDate() != null ? java.sql.Date.valueOf(loan.getReturnDate()) : null);
             stmt.setObject(2, loan.getId());
-            stmt.executeUpdate();
+            int rowsAffected = stmt.executeUpdate();
+            if (rowsAffected == 0) {
+                throw new SQLException("Updating loan failed, no rows affected.");
+            }
+            
+            // If the loan is being returned (return_date is not null), check for reservations
+            if (loan.getReturnDate() != null) {
+                checkAndProcessReservations(loan.getDocumentId());
+            }
         } catch (SQLException e) {
-            throw new RuntimeException("Error updating loan", e);
+            throw new RuntimeException("Error updating loan: " + e.getMessage(), e);
         }
     }
-
+private void checkAndProcessReservations(UUID documentId) {
+    ReservationDAO reservationDAO = ReservationDAOImpl.getInstance();
+    List<Reservation> reservations = reservationDAO.getReservationsForDocument(documentId);
+    
+    if (!reservations.isEmpty()) {
+        Reservation oldestReservation = reservations.get(0);
+        
+        // Create a new loan for the oldest reservation
+        Loan newLoan = new Loan(UUID.randomUUID(), documentId, oldestReservation.getUserId(), LocalDate.now(), null);
+        addLoan(newLoan);
+        
+        // Remove the processed reservation
+        reservationDAO.deleteReservation(documentId, oldestReservation.getUserId());
+    }
+}
     @Override
     public void deleteLoan(UUID loanId) {
         String sql = "DELETE FROM loans WHERE id = ?";

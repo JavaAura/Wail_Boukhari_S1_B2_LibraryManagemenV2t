@@ -40,6 +40,24 @@ public class ReservationDAOImpl implements ReservationDAO {
             throw new RuntimeException("Error adding reservation", e);
         }
     }
+    @Override
+    public List<Reservation> getReservationsForDocument(UUID documentId) {
+        List<Reservation> reservations = new ArrayList<>();
+        String sql = "SELECT r.* FROM reservations r " +
+                "JOIN all_documents d ON r.document_id = d.id " +
+                "WHERE d.id = ? " +
+                "ORDER BY r.reservation_date ASC";
+        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
+            stmt.setObject(1, documentId);
+            ResultSet rs = stmt.executeQuery();
+            while (rs.next()) {
+                reservations.add(mapResultSetToReservation(rs));
+            }
+        } catch (SQLException e) {
+            throw new RuntimeException("Error getting reservations for document", e);
+        }
+        return reservations;
+    }
 
     @Override
     public void updateReservation(Reservation reservation) {
@@ -85,7 +103,7 @@ public class ReservationDAOImpl implements ReservationDAO {
         List<Reservation> reservations = new ArrayList<>();
         String sql = "SELECT * FROM reservations";
         try (Statement stmt = connection.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+                ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 reservations.add(mapResultSetToReservation(rs));
             }
@@ -102,6 +120,5 @@ public class ReservationDAOImpl implements ReservationDAO {
         LocalDate reservationDate = rs.getDate("reservation_date").toLocalDate();
         return new Reservation(id, documentId, userId, reservationDate);
     }
-    
 
 }

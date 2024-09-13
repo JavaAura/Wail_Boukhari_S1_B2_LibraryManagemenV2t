@@ -11,5 +11,5 @@ public interface ReservationDAO {
     Optional<Reservation> getReservationById(UUID reservationId);
     List<Reservation> getAllReservations();
     void deleteReservation(UUID documentId, UUID userId);
-    
+    List<Reservation> getReservationsForDocument(UUID documentId);
 }

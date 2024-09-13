@@ -31,7 +31,8 @@ public class UserDAOImpl implements UserDAO {
 
     @Override
     public void addUser(User user) {
-        String sql = "INSERT INTO library_users (id, name, email, phone_number, borrowing_limit, type) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO " + getTableName(user) + " (id, name, email, phone_number, borrowing_limit, type, ";
+        sql += getSpecificColumns(user) + ") VALUES (?, ?, ?, ?, ?, ?, " + getSpecificValues(user) + ")";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, user.getId());
             stmt.setString(2, user.getName());
@@ -39,33 +40,39 @@ public class UserDAOImpl implements UserDAO {
             stmt.setString(4, user.getPhoneNumber());
             stmt.setInt(5, user.getBorrowingLimit());
             stmt.setString(6, user.getType());
+            setSpecificParameters(stmt, user, 7);
             stmt.executeUpdate();
-    
-            if (user instanceof Student) {
-                addStudentDetails((Student) user);
-            } else if (user instanceof Professor) {
-                addProfessorDetails((Professor) user);
-            }
         } catch (SQLException e) {
             throw new RuntimeException("Error adding user", e);
         }
     }
-    private void addStudentDetails(Student student) throws SQLException {
-        String sql = "INSERT INTO student_users (id, student_id, department) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, student.getId());
-            stmt.setString(2, student.getStudentId());
-            stmt.setString(3, student.getDepartment());
-            stmt.executeUpdate();
-        }
+
+    private String getTableName(User user) {
+        if (user instanceof Student) return "student_users";
+        if (user instanceof Professor) return "professor_users";
+        throw new IllegalArgumentException("Unknown user type");
     }
 
-    private void addProfessorDetails(Professor professor) throws SQLException {
-        String sql = "INSERT INTO professor_users (id, department) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, professor.getId());
-            stmt.setString(2, professor.getDepartment());
-            stmt.executeUpdate();
+    private String getSpecificColumns(User user) {
+        if (user instanceof Student) return "student_id, department";
+        if (user instanceof Professor) return "department";
+        throw new IllegalArgumentException("Unknown user type");
+    }
+
+    private String getSpecificValues(User user) {
+        if (user instanceof Student) return "?, ?";
+        if (user instanceof Professor) return "?";
+        throw new IllegalArgumentException("Unknown user type");
+    }
+
+    private void setSpecificParameters(PreparedStatement stmt, User user, int startIndex) throws SQLException {
+        if (user instanceof Student) {
+            stmt.setString(startIndex, ((Student) user).getStudentId());
+            stmt.setString(startIndex + 1, ((Student) user).getDepartment());
+        } else if (user instanceof Professor) {
+            stmt.setString(startIndex, ((Professor) user).getDepartment());
+        } else {
+            throw new IllegalArgumentException("Unknown user type");
         }
     }
 

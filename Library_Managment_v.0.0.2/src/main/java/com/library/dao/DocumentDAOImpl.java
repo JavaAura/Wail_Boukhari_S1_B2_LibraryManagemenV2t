@@ -29,7 +29,8 @@ public class DocumentDAOImpl implements DocumentDAO {
 
     @Override
     public void addDocument(Document document) {
-        String sql = "INSERT INTO library_documents (id, title, author, publisher, publication_year, type) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO " + getTableName(document) + " (id, title, author, publisher, publication_year, type, ";
+        sql += getSpecificColumns(document) + ") VALUES (?, ?, ?, ?, ?, ?, " + getSpecificValues(document) + ")";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, document.getId());
             stmt.setString(2, document.getTitle());
@@ -37,64 +38,52 @@ public class DocumentDAOImpl implements DocumentDAO {
             stmt.setString(4, document.getPublisher());
             stmt.setInt(5, document.getPublicationYear());
             stmt.setString(6, document.getType());
+            setSpecificParameters(stmt, document, 7);
             stmt.executeUpdate();
-    
-            addSpecificDocumentDetails(document);
         } catch (SQLException e) {
-            if (e.getSQLState().equals("P0001")) { // PostgreSQL custom error code
+            if (e.getSQLState().equals("P0001")) {
                 throw new IllegalArgumentException("A document with this title and author already exists.");
             }
             throw new RuntimeException("Error adding document", e);
         }
     }
-    private void addSpecificDocumentDetails(Document document) throws SQLException {
+
+    private String getTableName(Document document) {
+        if (document instanceof Book) return "books";
+        if (document instanceof Magazine) return "magazines";
+        if (document instanceof ScientificJournal) return "scientific_journals";
+        if (document instanceof UniversityThesis) return "university_theses";
+        throw new IllegalArgumentException("Unknown document type");
+    }
+
+    private String getSpecificColumns(Document document) {
+        if (document instanceof Book) return "isbn";
+        if (document instanceof Magazine) return "issue_number";
+        if (document instanceof ScientificJournal) return "research_field";
+        if (document instanceof UniversityThesis) return "university, field";
+        throw new IllegalArgumentException("Unknown document type");
+    }
+
+    private String getSpecificValues(Document document) {
+        if (document instanceof Book) return "?";
+        if (document instanceof Magazine) return "?";
+        if (document instanceof ScientificJournal) return "?";
+        if (document instanceof UniversityThesis) return "?, ?";
+        throw new IllegalArgumentException("Unknown document type");
+    }
+
+    private void setSpecificParameters(PreparedStatement stmt, Document document, int startIndex) throws SQLException {
         if (document instanceof Book) {
-            addBookDetails((Book) document);
+            stmt.setString(startIndex, ((Book) document).getIsbn());
         } else if (document instanceof Magazine) {
-            addMagazineDetails((Magazine) document);
+            stmt.setInt(startIndex, ((Magazine) document).getIssueNumber());
         } else if (document instanceof ScientificJournal) {
-            addScientificJournalDetails((ScientificJournal) document);
+            stmt.setString(startIndex, ((ScientificJournal) document).getResearchField());
         } else if (document instanceof UniversityThesis) {
-            addUniversityThesisDetails((UniversityThesis) document);
+            stmt.setString(startIndex, ((UniversityThesis) document).getUniversity());
+            stmt.setString(startIndex + 1, ((UniversityThesis) document).getField());
         } else {
             throw new IllegalArgumentException("Unknown document type");
-        }
-    }
-
-    private void addBookDetails(Book book) throws SQLException {
-        String sql = "INSERT INTO books (id, isbn) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, book.getId());
-            stmt.setString(2, book.getIsbn());
-            stmt.executeUpdate();
-        }
-    }
-
-    private void addMagazineDetails(Magazine magazine) throws SQLException {
-        String sql = "INSERT INTO magazines (id, issue_number) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, magazine.getId());
-            stmt.setInt(2, magazine.getIssueNumber());
-            stmt.executeUpdate();
-        }
-    }
-
-    private void addScientificJournalDetails(ScientificJournal journal) throws SQLException {
-        String sql = "INSERT INTO scientific_journals (id, research_field) VALUES (?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, journal.getId());
-            stmt.setString(2, journal.getResearchField());
-            stmt.executeUpdate();
-        }
-    }
-
-    private void addUniversityThesisDetails(UniversityThesis thesis) throws SQLException {
-        String sql = "INSERT INTO university_theses (id, university, field) VALUES (?, ?, ?)";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.setObject(1, thesis.getId());
-            stmt.setString(2, thesis.getUniversity());
-            stmt.setString(3, thesis.getField());
-            stmt.executeUpdate();
         }
     }
 
@@ -261,7 +250,7 @@ public class DocumentDAOImpl implements DocumentDAO {
     }
 
     private Book mapToBook(UUID id, String title, String author, String publisher, int publicationYear) throws SQLException {
-        String sql = "SELECT isbn FROM books WHERE id = ?";
+        String sql = "SELECT isbn FROM books_view WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, id);
             ResultSet rs = stmt.executeQuery();
@@ -274,7 +263,7 @@ public class DocumentDAOImpl implements DocumentDAO {
     }
 
     private Magazine mapToMagazine(UUID id, String title, String author, String publisher, int publicationYear) throws SQLException {
-        String sql = "SELECT issue_number FROM magazines WHERE id = ?";
+        String sql = "SELECT issue_number FROM magazines_view WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, id);
             ResultSet rs = stmt.executeQuery();
@@ -287,7 +276,7 @@ public class DocumentDAOImpl implements DocumentDAO {
     }
 
     private ScientificJournal mapToScientificJournal(UUID id, String title, String author, String publisher, int publicationYear) throws SQLException {
-        String sql = "SELECT research_field FROM scientific_journals WHERE id = ?";
+        String sql = "SELECT research_field FROM scientific_journals_view WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, id);
             ResultSet rs = stmt.executeQuery();
@@ -300,7 +289,7 @@ public class DocumentDAOImpl implements DocumentDAO {
     }
 
     private UniversityThesis mapToUniversityThesis(UUID id, String title, String author, String publisher, int publicationYear) throws SQLException {
-        String sql = "SELECT university, field FROM university_theses WHERE id = ?";
+        String sql = "SELECT university, field FROM university_theses_view WHERE id = ?";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, id);
             ResultSet rs = stmt.executeQuery();

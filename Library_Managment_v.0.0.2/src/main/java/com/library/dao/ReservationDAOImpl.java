@@ -40,6 +40,7 @@ public class ReservationDAOImpl implements ReservationDAO {
             throw new RuntimeException("Error adding reservation", e);
         }
     }
+
     @Override
     public List<Reservation> getReservationsForDocument(UUID documentId) {
         List<Reservation> reservations = new ArrayList<>();

@@ -31,19 +31,6 @@ public class LoanDAOImpl implements LoanDAO {
 
     @Override
     public void addLoan(Loan loan) {
-        // First, check if the document is already loaned
-        String checkSql = "SELECT COUNT(*) FROM loans WHERE document_id = ? AND return_date IS NULL";
-        try (PreparedStatement checkStmt = connection.prepareStatement(checkSql)) {
-            checkStmt.setObject(1, loan.getDocumentId());
-            ResultSet rs = checkStmt.executeQuery();
-            if (rs.next() && rs.getInt(1) > 0) {
-                throw new IllegalStateException("This document is already loaned.");
-            }
-        } catch (SQLException e) {
-            throw new RuntimeException("Error checking document loan status: " + e.getMessage(), e);
-        }
-    
-        // If the document is not loaned, proceed with adding the new loan
         String sql = "INSERT INTO loans (id, document_id, user_id, loan_date, return_date) VALUES (?, ?, ?, ?, ?)";
         try (PreparedStatement stmt = connection.prepareStatement(sql)) {
             stmt.setObject(1, loan.getId());
@@ -51,12 +38,9 @@ public class LoanDAOImpl implements LoanDAO {
             stmt.setObject(3, loan.getUserId());
             stmt.setDate(4, java.sql.Date.valueOf(loan.getLoanDate()));
             stmt.setDate(5, loan.getReturnDate() != null ? java.sql.Date.valueOf(loan.getReturnDate()) : null);
-            int rowsAffected = stmt.executeUpdate();
-            if (rowsAffected == 0) {
-                throw new SQLException("Adding loan failed, no rows affected.");
-            }
+            stmt.executeUpdate();
         } catch (SQLException e) {
-            throw new RuntimeException("Error adding loan: " + e.getMessage(), e);
+            throw new RuntimeException("Error adding loan", e);
         }
     }
 
@@ -115,7 +99,7 @@ private void checkAndProcessReservations(UUID documentId) {
                 return Optional.of(mapResultSetToLoan(rs));
             }
         } catch (SQLException e) {
-            throw new RuntimeException("Error getting loan by ID", e);
+            throw new RuntimeException("Error fetching loan by ID", e);
         }
         return Optional.empty();
     }

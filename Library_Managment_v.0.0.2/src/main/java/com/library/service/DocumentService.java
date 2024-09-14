@@ -11,12 +11,33 @@ import com.library.model.document.UniversityThesis;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.ArrayList;
 
 public class DocumentService {
     private final DocumentDAO documentDAO;
+    private final Map<String, Document> documentCache;
 
     public DocumentService() {
         this.documentDAO = DocumentDAOImpl.getInstance();
+        this.documentCache = new HashMap<>();
+        loadDocumentsIntoCache();
+    }
+
+    private void loadDocumentsIntoCache() {
+        List<Document> documents = documentDAO.getAllDocuments();
+        for (Document document : documents) {
+            documentCache.put(document.getTitle(), document);
+        }
+    }
+
+    public Optional<Document> getDocumentByTitle(String title) {
+        return Optional.ofNullable(documentCache.get(title));
+    }
+
+    public Optional<Document> getDocumentById(UUID documentId) {
+        return documentDAO.getDocumentById(documentId);
     }
 
     public void addDocument(Document document) {
@@ -24,26 +45,24 @@ public class DocumentService {
             document.setId(UUID.randomUUID());
         }
         documentDAO.addDocument(document);
+        documentCache.put(document.getTitle(), document);
     }
 
     public void updateDocument(Document document) {
         documentDAO.updateDocument(document);
+        documentCache.put(document.getTitle(), document);
     }
 
     public void deleteDocument(UUID documentId) {
+        Optional<Document> document = documentDAO.getDocumentById(documentId);
+        if (document.isPresent()) {
+            documentCache.remove(document.get().getTitle());
+        }
         documentDAO.deleteDocument(documentId);
     }
 
-    public Optional<Document> getDocumentById(UUID documentId) {
-        return documentDAO.getDocumentById(documentId);
-    }
-
-    public Optional<Document> getDocumentByTitle(String title) {
-        return documentDAO.getDocumentByTitle(title);
-    }
-
     public List<Document> getAllDocuments() {
-        return documentDAO.getAllDocuments();
+        return new ArrayList<>(documentCache.values());
     }
 
     public List<Document> searchDocuments(String searchTerm) {

@@ -550,17 +550,17 @@ public class ConsoleUI {
         }
     }
 
-private void printReservationDetails(Reservation reservation) {
-    String documentTitle = documentService.getDocumentById(reservation.getDocumentId())
-            .map(Document::getTitle)
-            .orElse("Unknown Document");
-    String userName = userService.getUserById(reservation.getUserId())
-            .map(User::getName)
-            .orElse("Unknown User");
-    System.out.println("Document: " + documentTitle);
-    System.out.println("User: " + userName);
-    System.out.println("Reservation Date: " + reservation.getReservationDate());
-}
+    private void printReservationDetails(Reservation reservation) {
+        String documentTitle = documentService.getDocumentById(reservation.getDocumentId())
+                .map(Document::getTitle)
+                .orElse("Unknown Document");
+        String userName = userService.getUserById(reservation.getUserId())
+                .map(User::getName)
+                .orElse("Unknown User");
+        System.out.println("Document: " + documentTitle);
+        System.out.println("User: " + userName);
+        System.out.println("Reservation Date: " + reservation.getReservationDate());
+    }
 
     private String getStringInput(String prompt) {
         System.out.print(prompt);
